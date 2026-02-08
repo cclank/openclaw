@@ -32,24 +32,146 @@ import {
 import { countToolResults, extractToolCallNames } from "../utils/transcript-tools.js";
 import { estimateUsageCost, resolveModelCostConfig } from "../utils/usage-format.js";
 
-export type {
-  CostUsageDailyEntry,
-  CostUsageSummary,
-  CostUsageTotals,
-  DiscoveredSession,
-  SessionCostSummary,
-  SessionDailyLatency,
-  SessionDailyMessageCounts,
-  SessionDailyModelUsage,
-  SessionDailyUsage,
-  SessionLatencyStats,
-  SessionLogEntry,
-  SessionMessageCounts,
-  SessionModelUsage,
-  SessionToolUsage,
-  SessionUsageTimePoint,
-  SessionUsageTimeSeries,
-} from "./session-cost-usage.types.js";
+type CostBreakdown = {
+  total?: number;
+  input?: number;
+  output?: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+};
+
+type ParsedUsageEntry = {
+  usage: NormalizedUsage;
+  costTotal?: number;
+  costBreakdown?: CostBreakdown;
+  provider?: string;
+  model?: string;
+  timestamp?: Date;
+};
+
+type ParsedTranscriptEntry = {
+  message: Record<string, unknown>;
+  role?: "user" | "assistant";
+  timestamp?: Date;
+  durationMs?: number;
+  usage?: NormalizedUsage;
+  costTotal?: number;
+  costBreakdown?: CostBreakdown;
+  provider?: string;
+  model?: string;
+  stopReason?: string;
+  toolNames: string[];
+  toolResultCounts: { total: number; errors: number };
+};
+
+export type CostUsageTotals = {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+  totalCost: number;
+  // Cost breakdown by token type (from actual API data when available)
+  inputCost: number;
+  outputCost: number;
+  cacheReadCost: number;
+  cacheWriteCost: number;
+  missingCostEntries: number;
+};
+
+export type CostUsageDailyEntry = CostUsageTotals & {
+  date: string;
+};
+
+export type ModelUsageEntry = CostUsageTotals & {
+  model: string;
+  provider?: string;
+  sessionCount: number;
+};
+
+export type CostUsageSummary = {
+  updatedAt: number;
+  days: number;
+  daily: CostUsageDailyEntry[];
+  models: ModelUsageEntry[];
+  totals: CostUsageTotals;
+};
+
+export type SessionDailyUsage = {
+  date: string; // YYYY-MM-DD
+  tokens: number;
+  cost: number;
+};
+
+export type SessionDailyMessageCounts = {
+  date: string; // YYYY-MM-DD
+  total: number;
+  user: number;
+  assistant: number;
+  toolCalls: number;
+  toolResults: number;
+  errors: number;
+};
+
+export type SessionLatencyStats = {
+  count: number;
+  avgMs: number;
+  p95Ms: number;
+  minMs: number;
+  maxMs: number;
+};
+
+export type SessionDailyLatency = SessionLatencyStats & {
+  date: string; // YYYY-MM-DD
+};
+
+export type SessionDailyModelUsage = {
+  date: string; // YYYY-MM-DD
+  provider?: string;
+  model?: string;
+  tokens: number;
+  cost: number;
+  count: number;
+};
+
+export type SessionMessageCounts = {
+  total: number;
+  user: number;
+  assistant: number;
+  toolCalls: number;
+  toolResults: number;
+  errors: number;
+};
+
+export type SessionToolUsage = {
+  totalCalls: number;
+  uniqueTools: number;
+  tools: Array<{ name: string; count: number }>;
+};
+
+export type SessionModelUsage = {
+  provider?: string;
+  model?: string;
+  count: number;
+  totals: CostUsageTotals;
+};
+
+export type SessionCostSummary = CostUsageTotals & {
+  sessionId?: string;
+  sessionFile?: string;
+  firstActivity?: number;
+  lastActivity?: number;
+  durationMs?: number;
+  activityDates?: string[]; // YYYY-MM-DD dates when session had activity
+  dailyBreakdown?: SessionDailyUsage[]; // Per-day token/cost breakdown
+  dailyMessageCounts?: SessionDailyMessageCounts[];
+  dailyLatency?: SessionDailyLatency[];
+  dailyModelUsage?: SessionDailyModelUsage[];
+  messageCounts?: SessionMessageCounts;
+  toolUsage?: SessionToolUsage;
+  modelUsage?: SessionModelUsage[];
+  latency?: SessionLatencyStats;
+};
 
 const emptyTotals = (): CostUsageTotals => ({
   input: 0,
@@ -296,6 +418,10 @@ export async function loadCostUsageSummary(params?: {
   }
 
   const dailyMap = new Map<string, CostUsageTotals>();
+  const modelMap = new Map<
+    string,
+    CostUsageTotals & { sessionFiles: Set<string>; provider?: string }
+  >();
   const totals = emptyTotals();
 
   const sessionsDir = resolveSessionTranscriptsDirForAgent(params?.agentId);
@@ -328,6 +454,8 @@ export async function loadCostUsageSummary(params?: {
         if (!ts || ts < sinceTime || ts > untilTime) {
           return;
         }
+
+        // Aggregate daily
         const dayKey = formatDayKey(entry.timestamp ?? now);
         const bucket = dailyMap.get(dayKey) ?? emptyTotals();
         applyUsageTotals(bucket, entry.usage);
@@ -338,6 +466,24 @@ export async function loadCostUsageSummary(params?: {
         }
         dailyMap.set(dayKey, bucket);
 
+        // Aggregate by model
+        const modelKey = entry.model || "unknown";
+        const modelBucket =
+          modelMap.get(modelKey) ??
+          Object.assign(emptyTotals(), {
+            sessionFiles: new Set<string>(),
+            provider: entry.provider,
+          });
+        applyUsageTotals(modelBucket, entry.usage);
+        if (entry.costBreakdown?.total !== undefined) {
+          applyCostBreakdown(modelBucket, entry.costBreakdown);
+        } else {
+          applyCostTotal(modelBucket, entry.costTotal);
+        }
+        modelBucket.sessionFiles.add(filePath);
+        modelMap.set(modelKey, modelBucket);
+
+        // Aggregate totals
         applyUsageTotals(totals, entry.usage);
         if (entry.costBreakdown?.total !== undefined) {
           applyCostBreakdown(totals, entry.costBreakdown);
@@ -352,6 +498,13 @@ export async function loadCostUsageSummary(params?: {
     .map(([date, bucket]) => Object.assign({ date }, bucket))
     .toSorted((a, b) => a.date.localeCompare(b.date));
 
+  const models = Array.from(modelMap.entries())
+    .map(([model, bucket]) => {
+      const { sessionFiles, ...rest } = bucket;
+      return Object.assign({ model, sessionCount: sessionFiles.size }, rest);
+    })
+    .toSorted((a, b) => b.totalTokens - a.totalTokens);
+
   // Calculate days for backwards compatibility in response
   const days = Math.ceil((untilTime - sinceTime) / (24 * 60 * 60 * 1000)) + 1;
 
@@ -359,6 +512,7 @@ export async function loadCostUsageSummary(params?: {
     updatedAt: Date.now(),
     days,
     daily,
+    models,
     totals,
   };
 }
