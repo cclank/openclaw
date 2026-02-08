@@ -58,9 +58,6 @@ export function getDmHistoryLimitFromSessionKey(
   const kind = providerParts[1]?.toLowerCase();
   const userIdRaw = providerParts.slice(2).join(":");
   const userId = stripThreadSuffix(userIdRaw);
-  if (kind !== "dm") {
-    return undefined;
-  }
 
   const getLimit = (
     providerConfig:
@@ -94,5 +91,20 @@ export function getDmHistoryLimitFromSessionKey(
     return entry as { dmHistoryLimit?: number; dms?: Record<string, { historyLimit?: number }> };
   };
 
-  return getLimit(resolveProviderConfig(config, provider));
+  if (kind === "dm") {
+    return getLimit(resolveProviderConfig(config, provider));
+  }
+
+  if (kind === "group") {
+    // @ts-ignore - groupHistoryLimit added to schema
+    return config.agents?.defaults?.groupHistoryLimit;
+  }
+
+  // Handle main session or other types
+  if (parts[1] === "main" && parts[2] === "main") {
+    // @ts-ignore
+    return config.agents?.defaults?.groupHistoryLimit;
+  }
+
+  return undefined;
 }
