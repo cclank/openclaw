@@ -9,6 +9,7 @@ import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
+import { getMemorySearchManager } from "../../../memory/index.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
 import { isSubagentSessionKey, normalizeAgentId } from "../../../routing/session-key.js";
 import { resolveSignalReactionLevel } from "../../../signal/reaction-level.js";
@@ -749,6 +750,38 @@ export async function runEmbeddedAttempt(
         }
 
         log.debug(`embedded run prompt start: runId=${params.runId} sessionId=${params.sessionId}`);
+
+        // Hybrid Context Engine: Search older history and Memory for relevant context
+        if (
+          params.config?.agents?.defaults?.memorySearch?.enabled &&
+          !isSubagentSessionKey(params.sessionKey)
+        ) {
+          try {
+            const { manager } = await getMemorySearchManager({
+              cfg: params.config,
+              agentId: hookAgentId,
+            });
+            if (manager) {
+              const recallResults = await manager.search(effectivePrompt, {
+                maxResults: 3,
+                minScore: 0.3,
+                sessionKey: params.sessionKey,
+              });
+              if (recallResults.length > 0) {
+                const background = recallResults
+                  .map((r) => `[Recall from ${r.path}]: ${r.snippet.trim()}`)
+                  .join("\n\n");
+                effectivePrompt = `## Background Recall (Relevant History/Memory)\n${background}\n\n${effectivePrompt}`;
+                log.debug(
+                  `Hybrid Context Engine: injected ${recallResults.length} recall snippets`,
+                );
+              }
+            }
+          } catch (recallErr) {
+            log.warn(`Hybrid Context Engine recall failed: ${recallErr}`);
+          }
+        }
+
         cacheTrace?.recordStage("prompt:before", {
           prompt: effectivePrompt,
           messages: activeSession.messages,
