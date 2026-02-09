@@ -1,3 +1,4 @@
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
 import {
@@ -228,6 +229,8 @@ describe("resolveAgentConfig", () => {
       : "/srv/openclaw-home/.openclaw/agents/main/agent";
 
     vi.stubEnv("OPENCLAW_HOME", mockHome);
+    // Clear state dir so it falls back to OPENCLAW_HOME
+    vi.stubEnv("OPENCLAW_STATE_DIR", "");
 
     const agentDir = resolveAgentDir({} as OpenClawConfig, "main");
     expect(agentDir).toBe(expected);
