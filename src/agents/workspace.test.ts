@@ -1,10 +1,37 @@
-import { describe, expect, it } from "vitest";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeTempWorkspace, writeWorkspaceFile } from "../test-helpers/workspace.js";
 import {
   DEFAULT_MEMORY_ALT_FILENAME,
   DEFAULT_MEMORY_FILENAME,
   loadWorkspaceBootstrapFiles,
+  resolveDefaultAgentWorkspaceDir,
 } from "./workspace.js";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
+describe("resolveDefaultAgentWorkspaceDir", () => {
+  it("uses OPENCLAW_HOME for default workspace resolution", () => {
+    const isWindows = process.platform === "win32";
+    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
+    const mockHOME = isWindows ? "C:\\Users\\other" : "/home/other";
+    const expected = isWindows
+      ? "C:\\openclaw-home\\.openclaw\\workspace"
+      : "/srv/openclaw-home/.openclaw/workspace";
+
+    const dir = resolveDefaultAgentWorkspaceDir(
+      {
+        OPENCLAW_HOME: mockHome,
+        HOME: mockHOME,
+      } as NodeJS.ProcessEnv,
+      () => mockHOME,
+    );
+
+    expect(dir).toBe(expected);
+  });
+});
 
 describe("loadWorkspaceBootstrapFiles", () => {
   it("includes MEMORY.md when present", async () => {
