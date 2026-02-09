@@ -10,12 +10,15 @@ import {
 
 describe("resolveDefaultAgentWorkspaceDir", () => {
   it("uses OPENCLAW_HOME for default workspace resolution", () => {
+    const isWindows = process.platform === "win32";
+    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
+
     const dir = resolveDefaultAgentWorkspaceDir({
-      OPENCLAW_HOME: "/srv/openclaw-home",
-      HOME: "/home/other",
+      OPENCLAW_HOME: mockHome,
+      HOME: isWindows ? "C:\\Users\\other" : "/home/other",
     } as NodeJS.ProcessEnv);
 
-    expect(dir).toBe(path.join(path.resolve("/srv/openclaw-home"), ".openclaw", "workspace"));
+    expect(dir).toBe(path.join(mockHome, ".openclaw", "workspace"));
   });
 });
 
