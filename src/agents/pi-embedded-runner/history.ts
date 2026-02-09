@@ -53,7 +53,7 @@ export function pruneHistoryContent(
     }
 
     // Type-safe content check for union types in AgentMessage
-    const msgWithContent = msg as Extract<AgentMessage, { content: any }>;
+    const msgWithContent = msg as Extract<AgentMessage, { content: unknown }>;
     if (!msgWithContent.content) {
       return msg;
     }
@@ -68,11 +68,13 @@ export function pruneHistoryContent(
     }
 
     if (Array.isArray(msgWithContent.content)) {
-      const prunedContent = msgWithContent.content.map((part: any) => {
+      const prunedContent = msgWithContent.content.map((part: unknown) => {
         if (
           part &&
           typeof part === "object" &&
+          "type" in part &&
           part.type === "text" &&
+          "text" in part &&
           typeof part.text === "string" &&
           part.text.length > maxChars
         ) {
