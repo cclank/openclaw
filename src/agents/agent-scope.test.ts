@@ -208,16 +208,28 @@ describe("resolveAgentConfig", () => {
   });
 
   it("uses OPENCLAW_HOME for default agent workspace", () => {
-    vi.stubEnv("OPENCLAW_HOME", "/srv/openclaw-home");
+    const isWindows = process.platform === "win32";
+    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
+    const expected = isWindows
+      ? "C:\\openclaw-home\\.openclaw\\workspace"
+      : "/srv/openclaw-home/.openclaw/workspace";
+
+    vi.stubEnv("OPENCLAW_HOME", mockHome);
 
     const workspace = resolveAgentWorkspaceDir({} as OpenClawConfig, "main");
-    expect(workspace).toBe("/srv/openclaw-home/.openclaw/workspace");
+    expect(workspace).toBe(expected);
   });
 
   it("uses OPENCLAW_HOME for default agentDir", () => {
-    vi.stubEnv("OPENCLAW_HOME", "/srv/openclaw-home");
+    const isWindows = process.platform === "win32";
+    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
+    const expected = isWindows
+      ? "C:\\openclaw-home\\.openclaw\\agents\\main\\agent"
+      : "/srv/openclaw-home/.openclaw/agents/main/agent";
+
+    vi.stubEnv("OPENCLAW_HOME", mockHome);
 
     const agentDir = resolveAgentDir({} as OpenClawConfig, "main");
-    expect(agentDir).toBe("/srv/openclaw-home/.openclaw/agents/main/agent");
+    expect(agentDir).toBe(expected);
   });
 });
