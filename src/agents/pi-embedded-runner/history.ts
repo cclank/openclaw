@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { AgentMessage, TextContent } from "@mariozechner/pi-agent-core";
 import type { OpenClawConfig } from "../../config/config.js";
 
 const THREAD_SUFFIX_REGEX = /^(.*)(?::(?:thread|topic):\d+)$/i;
@@ -62,7 +62,7 @@ export function pruneHistoryContent(
     }
 
     if (Array.isArray(msg.content)) {
-      const prunedContent = msg.content.map((part) => {
+      const prunedContent = msg.content.map((part: any) => {
         if (part.type === "text" && part.text.length > maxChars) {
           return {
             ...part,

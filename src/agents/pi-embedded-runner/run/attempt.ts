@@ -566,8 +566,8 @@ export async function runEmbeddedAttempt(
           getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
         );
         const pruned = pruneHistoryContent(limited, {
-          maxCharsPerMessage: params.config?.agents?.defaults?.contextPruning?.reserveTokensFloor
-            ? Math.floor(params.config.agents.defaults.contextPruning.reserveTokensFloor / 4)
+          maxCharsPerMessage: params.config?.agents?.defaults?.compaction?.reserveTokensFloor
+            ? Math.floor(params.config.agents.defaults.compaction.reserveTokensFloor / 4)
             : 2000,
           keepLastN: 2,
         });
