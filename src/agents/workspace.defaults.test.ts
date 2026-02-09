@@ -7,17 +7,11 @@ afterEach(() => {
 
 describe("DEFAULT_AGENT_WORKSPACE_DIR", () => {
   it("uses OPENCLAW_HOME at module import time", async () => {
-    const isWindows = process.platform === "win32";
-    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
-    const expected = isWindows
-      ? "C:\\openclaw-home\\.openclaw\\workspace"
-      : "/srv/openclaw-home/.openclaw/workspace";
-
-    vi.stubEnv("OPENCLAW_HOME", mockHome);
-    vi.stubEnv("HOME", isWindows ? "C:\\Users\\other" : "/home/other");
+    vi.stubEnv("OPENCLAW_HOME", "/srv/openclaw-home");
+    vi.stubEnv("HOME", "/home/other");
     vi.resetModules();
 
     const mod = await import("./workspace.js");
-    expect(mod.DEFAULT_AGENT_WORKSPACE_DIR).toBe(expected);
+    expect(mod.DEFAULT_AGENT_WORKSPACE_DIR).toBe("/srv/openclaw-home/.openclaw/workspace");
   });
 });
