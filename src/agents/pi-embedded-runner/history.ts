@@ -52,23 +52,27 @@ export function pruneHistoryContent(
       return msg;
     }
 
-    if (typeof msg.content === "string" && msg.content.length > maxChars) {
+    // Type-safe content check for union types in AgentMessage
+    const msgWithContent = msg as Extract<AgentMessage, { content: any }>;
+    if (!msgWithContent.content) {
+      return msg;
+    }
+
+    if (typeof msgWithContent.content === "string" && msgWithContent.content.length > maxChars) {
       return {
         ...msg,
         content:
-          msg.content.slice(0, maxChars) +
+          msgWithContent.content.slice(0, maxChars) +
           "\n\n[... Content truncated by Token Optimizer to save memory ...]",
-      };
+      } as AgentMessage;
     }
 
-    if (Array.isArray(msg.content)) {
-      const prunedContent = msg.content.map((part) => {
+    if (Array.isArray(msgWithContent.content)) {
+      const prunedContent = msgWithContent.content.map((part: any) => {
         if (
           part &&
           typeof part === "object" &&
-          "type" in part &&
           part.type === "text" &&
-          "text" in part &&
           typeof part.text === "string" &&
           part.text.length > maxChars
         ) {
@@ -79,7 +83,7 @@ export function pruneHistoryContent(
         }
         return part;
       });
-      return { ...msg, content: prunedContent };
+      return { ...msg, content: prunedContent } as AgentMessage;
     }
 
     return msg;
@@ -109,13 +113,6 @@ export function getDmHistoryLimitFromSessionKey(
   const kind = providerParts[1]?.toLowerCase();
   const userIdRaw = providerParts.slice(2).join(":");
   const userId = stripThreadSuffix(userIdRaw);
-<<<<<<< HEAD
-=======
-  // Accept both "direct" (new) and "dm" (legacy) for backward compat
-  if (kind !== "direct" && kind !== "dm") {
-    return undefined;
-  }
->>>>>>> main
 
   const getLimit = (
     providerConfig:
@@ -149,7 +146,8 @@ export function getDmHistoryLimitFromSessionKey(
     return entry as { dmHistoryLimit?: number; dms?: Record<string, { historyLimit?: number }> };
   };
 
-  if (kind === "dm") {
+  // Accept both "direct" (new) and "dm" (legacy) for backward compat
+  if (kind === "dm" || kind === "direct") {
     return getLimit(resolveProviderConfig(config, provider));
   }
 
