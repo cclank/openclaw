@@ -70,7 +70,11 @@ import {
   sanitizeSessionHistory,
   sanitizeToolsForGoogle,
 } from "../google.js";
-import { getDmHistoryLimitFromSessionKey, limitHistoryTurns } from "../history.js";
+import {
+  getDmHistoryLimitFromSessionKey,
+  limitHistoryTurns,
+  pruneHistoryContent,
+} from "../history.js";
 import { log } from "../logger.js";
 import { buildModelAliasLines } from "../model.js";
 import {
@@ -561,9 +565,15 @@ export async function runEmbeddedAttempt(
           validated,
           getDmHistoryLimitFromSessionKey(params.sessionKey, params.config),
         );
-        cacheTrace?.recordStage("session:limited", { messages: limited });
-        if (limited.length > 0) {
-          activeSession.agent.replaceMessages(limited);
+        const pruned = pruneHistoryContent(limited, {
+          maxCharsPerMessage: params.config?.agents?.defaults?.contextPruning?.reserveTokensFloor
+            ? Math.floor(params.config.agents.defaults.contextPruning.reserveTokensFloor / 4)
+            : 2000,
+          keepLastN: 2,
+        });
+        cacheTrace?.recordStage("session:limited", { messages: pruned });
+        if (pruned.length > 0) {
+          activeSession.agent.replaceMessages(pruned);
         }
       } catch (err) {
         sessionManager.flushPendingToolResults?.();

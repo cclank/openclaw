@@ -36,6 +36,49 @@ export function limitHistoryTurns(
 }
 
 /**
+ * Truncates large message content in historical turns to save tokens.
+ * Specifically targets tool results and long assistant outputs.
+ */
+export function pruneHistoryContent(
+  messages: AgentMessage[],
+  options: { maxCharsPerMessage?: number; keepLastN?: number } = {},
+): AgentMessage[] {
+  const maxChars = options.maxCharsPerMessage ?? 2000;
+  const keepLastN = options.keepLastN ?? 2;
+
+  return messages.map((msg, index) => {
+    // Never prune the last few turns or user messages
+    if (index >= messages.length - keepLastN || msg.role === "user") {
+      return msg;
+    }
+
+    if (typeof msg.content === "string" && msg.content.length > maxChars) {
+      return {
+        ...msg,
+        content:
+          msg.content.slice(0, maxChars) +
+          "\n\n[... Content truncated by Token Optimizer to save memory ...]",
+      };
+    }
+
+    if (Array.isArray(msg.content)) {
+      const prunedContent = msg.content.map((part) => {
+        if (part.type === "text" && part.text.length > maxChars) {
+          return {
+            ...part,
+            text: part.text.slice(0, maxChars) + "\n\n[... Text truncated by Token Optimizer ...]",
+          };
+        }
+        return part;
+      });
+      return { ...msg, content: prunedContent };
+    }
+
+    return msg;
+  });
+}
+
+/**
  * Extract provider + user ID from a session key and look up dmHistoryLimit.
  * Supports per-DM overrides and provider defaults.
  */
