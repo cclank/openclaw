@@ -1,4 +1,4 @@
-import type { AgentMessage, TextContent } from "@mariozechner/pi-agent-core";
+import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { OpenClawConfig } from "../../config/config.js";
 
 const THREAD_SUFFIX_REGEX = /^(.*)(?::(?:thread|topic):\d+)$/i;
@@ -62,8 +62,16 @@ export function pruneHistoryContent(
     }
 
     if (Array.isArray(msg.content)) {
-      const prunedContent = msg.content.map((part: any) => {
-        if (part.type === "text" && part.text.length > maxChars) {
+      const prunedContent = msg.content.map((part) => {
+        if (
+          part &&
+          typeof part === "object" &&
+          "type" in part &&
+          part.type === "text" &&
+          "text" in part &&
+          typeof part.text === "string" &&
+          part.text.length > maxChars
+        ) {
           return {
             ...part,
             text: part.text.slice(0, maxChars) + "\n\n[... Text truncated by Token Optimizer ...]",
