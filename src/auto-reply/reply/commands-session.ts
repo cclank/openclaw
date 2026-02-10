@@ -314,7 +314,12 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
   }
 
   const startMs = Date.now() - durationMs;
-  const summary = await loadCostUsageSummary({ startMs, endMs: Date.now(), config: params.cfg });
+  const summary = await loadCostUsageSummary({
+    startMs,
+    endMs: Date.now(),
+    config: params.cfg,
+    agentId: params.agentId,
+  });
 
   if (isByModel) {
     // Model breakdown message
