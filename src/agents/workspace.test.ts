@@ -18,7 +18,7 @@ describe("resolveDefaultAgentWorkspaceDir", () => {
       HOME: isWindows ? "C:\\Users\\other" : "/home/other",
     } as NodeJS.ProcessEnv);
 
-    expect(dir).toBe(path.join(mockHome, ".openclaw", "workspace"));
+    expect(dir).toBe(path.join(path.resolve(mockHome), ".openclaw", "workspace"));
   });
 });
 
