@@ -260,21 +260,21 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
     return {
       shouldContinue: false,
       reply: {
-        text: "📊 *请选择用量统计范围* \n━━━━━━━━━━━━━━\n查看所有会话的 Token 消耗与费用汇总：",
+        text: "📊 *Choose usage summary range*\n━━━━━━━━━━━━━━\nView total token usage and cost across all sessions:",
         channelData: {
           telegram: {
             buttons: [
               [
-                { text: "⚡️ 最近 5 小时", callback_data: "/total_usage 5h" },
-                { text: "🕒 最近 24 小时", callback_data: "/total_usage 24h" },
+                { text: "⚡️ Last 5 hours", callback_data: "/total_usage 5h" },
+                { text: "🕒 Last 24 hours", callback_data: "/total_usage 24h" },
               ],
               [
-                { text: "📅 最近 7 天", callback_data: "/total_usage 7d" },
-                { text: "📅 最近 30 天", callback_data: "/total_usage 30d" },
+                { text: "📅 Last 7 days", callback_data: "/total_usage 7d" },
+                { text: "📅 Last 30 days", callback_data: "/total_usage 30d" },
               ],
               [
-                { text: "🤖 按模型统计 (30d)", callback_data: "/total_usage by-model" },
-                { text: "🌐 所有时间 (365d)", callback_data: "/total_usage all" },
+                { text: "🤖 By model (30d)", callback_data: "/total_usage by-model" },
+                { text: "🌐 All time (365d)", callback_data: "/total_usage all" },
               ],
             ],
           },
@@ -293,11 +293,11 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
   }
 
   let durationMs = 30 * 24 * 60 * 60 * 1000; // Default 30 days
-  let label = "最近 30 天";
+  let label = "Last 30 days";
 
   if (rangeStr === "all") {
     durationMs = 365 * 24 * 60 * 60 * 1000;
-    label = "所有时间";
+    label = "All time";
   } else {
     const match = rangeStr.match(/^(\d+)([hd])?$/i);
     if (match) {
@@ -305,10 +305,10 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
       const unit = (match[2] || "d").toLowerCase();
       if (unit === "h") {
         durationMs = val * 60 * 60 * 1000;
-        label = `最近 ${val} 小时`;
+        label = `Last ${val} hour${val === 1 ? "" : "s"}`;
       } else {
         durationMs = val * 24 * 60 * 60 * 1000;
-        label = `最近 ${val} 天`;
+        label = `Last ${val} day${val === 1 ? "" : "s"}`;
       }
     }
   }
@@ -322,7 +322,7 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
       .map((m) => {
         const cost = formatUsd(m.totalCost);
         const tokens = formatTokenCount(m.totalTokens);
-        return `🤖 *${m.model}*\n   ├ 消耗: \`${tokens}\` tokens\n   └ 费用: \`${cost}\` (${m.sessionCount} 场会话)`;
+        return `🤖 *${m.model}*\n   ├ Usage: \`${tokens}\` tokens\n   └ Cost: \`${cost}\` (${m.sessionCount} session${m.sessionCount === 1 ? "" : "s"})`;
       })
       .slice(0, 15)
       .join("\n\n");
@@ -330,7 +330,7 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
     return {
       shouldContinue: false,
       reply: {
-        text: `📊 *模型用量细分报告*\n📅 范围：\`${label}\`\n━━━━━━━━━━━━━━\n\n${modelLines || "⚠️ 无调用记录"}\n\n━━━━━━━━━━━━━━\n💰 *总计开销*: \`${formatUsd(summary.totals.totalCost)}\``,
+        text: `📊 *Usage breakdown by model*\n📅 Range: \`${label}\`\n━━━━━━━━━━━━━━\n\n${modelLines || "⚠️ No usage records"}\n\n━━━━━━━━━━━━━━\n💰 *Total cost*: \`${formatUsd(summary.totals.totalCost)}\``,
       },
     };
   }
@@ -362,7 +362,7 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
   return {
     shouldContinue: false,
     reply: {
-      text: `📊 *用量统计总览 (${label})*\n━━━━━━━━━━━━━━\n\n💰 *总估算费用*: \`${totalCost}\`\n💎 *总 Token 消耗*: \`${totalTokens}\` \n♻️ *缓存命中*: \`${cacheTokens}\` (\`${cacheRate}%\`)\n\n🤖 *模型用量分布 (Top 5)*:\n${modelDistributionLines || "⚠️ 无记录"}`,
+      text: `📊 *Usage summary (${label})*\n━━━━━━━━━━━━━━\n\n💰 *Estimated total cost*: \`${totalCost}\`\n💎 *Total token usage*: \`${totalTokens}\` \n♻️ *Cache read tokens*: \`${cacheTokens}\` (\`${cacheRate}%\`)\n\n🤖 *Model distribution (Top 5)*:\n${modelDistributionLines || "⚠️ No records"}`,
     },
   };
 };
