@@ -587,7 +587,6 @@ export async function runEmbeddedAttempt(
         if (pruned.length > 0) {
           activeSession.agent.replaceMessages(pruned);
         }
-        }
       } catch (err) {
         sessionManager.flushPendingToolResults?.();
         activeSession.dispose();
