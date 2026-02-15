@@ -314,13 +314,9 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
     }
   }
 
-  const startMs = Date.now() - durationMs;
-  const summary = await loadCostUsageSummary({
-    startMs,
-    endMs: Date.now(),
-    config: params.cfg,
-    agentId: params.agentId,
-  });
+  const nowMs = Date.now();
+  const startMs = nowMs - durationMs;
+  const summary = await loadCostUsageSummary({ startMs, endMs: nowMs, config: params.cfg });
 
   if (isByModel) {
     // Model breakdown message
@@ -336,7 +332,7 @@ export const handleTotalUsageCommand: CommandHandler = async (params, allowTextC
     return {
       shouldContinue: false,
       reply: {
-        text: `📊 *模型用量细分报告*\n📅 范围：\`${label}\`\n━━━━━━━━━━━━━━\n\n${modelLines || "⚠️ 无调用记录"}\n\n━━━━━━━━━━━━━━\n💰 *总计开销*: \`${formatUsd(summary.totals.totalCost)}\``,
+        text: `📊 *模型用量细分报告*\n📅 范围：\`${label}\`\n━━━━━━━━━━━━━━\n\n${modelLines || "⚠️ 无调用记录"}\n\n━━━━━━━━━━━━━━\n💰 *总估算费用*: \`${formatUsd(summary.totals.totalCost)}\``,
       },
     };
   }
@@ -513,5 +509,67 @@ export const handleAbortTrigger: CommandHandler = async (params, allowTextComman
   } else if (params.command.abortKey) {
     setAbortMemory(params.command.abortKey, true);
   }
-  return { shouldContinue: false, reply: { text: "⚙️ Agent was aborted." } };
+
+  // Trigger internal hook for abort
+  const hookEvent = createInternalHookEvent(
+    "command",
+    "abort",
+    abortTarget.key ?? params.sessionKey ?? "",
+    {
+      sessionEntry: abortTarget.entry ?? params.sessionEntry,
+      sessionId: abortTarget.sessionId,
+      commandSource: params.command.surface,
+      senderId: params.command.senderId,
+    },
+  );
+  await triggerInternalHook(hookEvent);
+
+  const { stopped } = stopSubagentsForRequester({
+    cfg: params.cfg,
+    requesterSessionKey: abortTarget.key ?? params.sessionKey,
+  });
+
+  return { shouldContinue: false, reply: { text: formatAbortReplyText(stopped) } };
+};
+
+export const handleNewCommand: CommandHandler = async (params, allowTextCommands) => {
+  if (!allowTextCommands) {
+    return null;
+  }
+  if (params.command.commandBodyNormalized !== "/new") {
+    return null;
+  }
+  if (!params.command.isAuthorizedSender) {
+    logVerbose(`Ignoring /new from unauthorized sender: ${params.command.senderId || "<unknown>"}`);
+    return { shouldContinue: false };
+  }
+  await triggerInternalHook(
+    createInternalHookEvent("command", "new", params.sessionKey ?? "", {
+      commandSource: params.command.surface,
+      senderId: params.command.senderId,
+    }),
+  );
+  return { shouldContinue: true, reply: { text: "Starting a new session. How can I help you?" } };
+};
+
+export const handleResetCommand: CommandHandler = async (params, allowTextCommands) => {
+  if (!allowTextCommands) {
+    return null;
+  }
+  if (params.command.commandBodyNormalized !== "/reset") {
+    return null;
+  }
+  if (!params.command.isAuthorizedSender) {
+    logVerbose(
+      `Ignoring /reset from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
+    );
+    return { shouldContinue: false };
+  }
+  await triggerInternalHook(
+    createInternalHookEvent("command", "reset", params.sessionKey ?? "", {
+      commandSource: params.command.surface,
+      senderId: params.command.senderId,
+    }),
+  );
+  return { shouldContinue: true, reply: { text: "Resetting session. How can I help you?" } };
 };

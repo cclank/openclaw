@@ -211,7 +211,7 @@ export const TelegramConfigSchema = TelegramAccountSchemaBase.extend({
 export const DiscordDmSchema = z
   .object({
     enabled: z.boolean().optional(),
-    policy: DmPolicySchema.optional().default("pairing"),
+    policy: DmPolicySchema.optional(),
     allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
     groupEnabled: z.boolean().optional(),
     groupChannels: z.array(z.union([z.string(), z.number()])).optional(),
@@ -459,7 +459,7 @@ export const GoogleChatConfigSchema = GoogleChatAccountSchema.extend({
 export const SlackDmSchema = z
   .object({
     enabled: z.boolean().optional(),
-    policy: DmPolicySchema.optional().default("pairing"),
+    policy: DmPolicySchema.optional(),
     allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
     groupEnabled: z.boolean().optional(),
     groupChannels: z.array(z.union([z.string(), z.number()])).optional(),
@@ -740,7 +740,9 @@ export const IrcAccountSchemaBase = z
   })
   .strict();
 
-export const IrcAccountSchema = IrcAccountSchemaBase.superRefine((value, ctx) => {
+type IrcBaseConfig = z.infer<typeof IrcAccountSchemaBase>;
+
+function refineIrcAllowFromAndNickserv(value: IrcBaseConfig, ctx: z.RefinementCtx): void {
   requireOpenAllowFrom({
     policy: value.dmPolicy,
     allowFrom: value.allowFrom,
@@ -755,25 +757,16 @@ export const IrcAccountSchema = IrcAccountSchemaBase.superRefine((value, ctx) =>
       message: "channels.irc.nickserv.register=true requires channels.irc.nickserv.registerEmail",
     });
   }
+}
+
+export const IrcAccountSchema = IrcAccountSchemaBase.superRefine((value, ctx) => {
+  refineIrcAllowFromAndNickserv(value, ctx);
 });
 
 export const IrcConfigSchema = IrcAccountSchemaBase.extend({
   accounts: z.record(z.string(), IrcAccountSchema.optional()).optional(),
 }).superRefine((value, ctx) => {
-  requireOpenAllowFrom({
-    policy: value.dmPolicy,
-    allowFrom: value.allowFrom,
-    ctx,
-    path: ["allowFrom"],
-    message: 'channels.irc.dmPolicy="open" requires channels.irc.allowFrom to include "*"',
-  });
-  if (value.nickserv?.register && !value.nickserv.registerEmail?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["nickserv", "registerEmail"],
-      message: "channels.irc.nickserv.register=true requires channels.irc.nickserv.registerEmail",
-    });
-  }
+  refineIrcAllowFromAndNickserv(value, ctx);
 });
 
 export const IMessageAccountSchemaBase = z
