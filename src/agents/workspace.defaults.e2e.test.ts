@@ -6,14 +6,14 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("DEFAULT_AGENT_WORKSPACE_DIR", () => {
+describe("resolveDefaultAgentWorkspaceDir", () => {
   it("uses OPENCLAW_HOME when resolving the default workspace dir", () => {
-    const home = path.join(path.sep, "srv", "openclaw-home");
+    const isWindows = process.platform === "win32";
+    const home = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
     vi.stubEnv("OPENCLAW_HOME", home);
-    vi.stubEnv("HOME", path.join(path.sep, "home", "other"));
+    vi.stubEnv("HOME", isWindows ? "C:\\Users\\other" : "/home/other");
 
-    expect(resolveDefaultAgentWorkspaceDir()).toBe(
-      path.join(path.resolve(home), ".openclaw", "workspace"),
-    );
+    const expected = path.join(path.resolve(home), ".openclaw", "workspace");
+    expect(resolveDefaultAgentWorkspaceDir()).toBe(expected);
   });
 });

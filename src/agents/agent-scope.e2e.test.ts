@@ -1,4 +1,3 @@
-import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
 import {
@@ -209,20 +208,30 @@ describe("resolveAgentConfig", () => {
   });
 
   it("uses OPENCLAW_HOME for default agent workspace", () => {
-    const home = path.join(path.sep, "srv", "openclaw-home");
-    vi.stubEnv("OPENCLAW_HOME", home);
+    const isWindows = process.platform === "win32";
+    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
+    const expected = isWindows
+      ? "C:\\openclaw-home\\.openclaw\\workspace"
+      : "/srv/openclaw-home/.openclaw/workspace";
+
+    vi.stubEnv("OPENCLAW_HOME", mockHome);
 
     const workspace = resolveAgentWorkspaceDir({} as OpenClawConfig, "main");
-    expect(workspace).toBe(path.join(path.resolve(home), ".openclaw", "workspace"));
+    expect(workspace).toBe(expected);
   });
 
   it("uses OPENCLAW_HOME for default agentDir", () => {
-    const home = path.join(path.sep, "srv", "openclaw-home");
-    vi.stubEnv("OPENCLAW_HOME", home);
+    const isWindows = process.platform === "win32";
+    const mockHome = isWindows ? "C:\\openclaw-home" : "/srv/openclaw-home";
+    const expected = isWindows
+      ? "C:\\openclaw-home\\.openclaw\\agents\\main\\agent"
+      : "/srv/openclaw-home/.openclaw/agents/main/agent";
+
+    vi.stubEnv("OPENCLAW_HOME", mockHome);
     // Clear state dir so it falls back to OPENCLAW_HOME
     vi.stubEnv("OPENCLAW_STATE_DIR", "");
 
     const agentDir = resolveAgentDir({} as OpenClawConfig, "main");
-    expect(agentDir).toBe(path.join(path.resolve(home), ".openclaw", "agents", "main", "agent"));
+    expect(agentDir).toBe(expected);
   });
 });

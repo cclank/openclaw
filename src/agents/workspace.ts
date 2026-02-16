@@ -470,7 +470,7 @@ export function filterBootstrapFilesForSession(
   sessionKey?: string,
 ): WorkspaceBootstrapFile[] {
   if (!sessionKey || (!isSubagentSessionKey(sessionKey) && !isCronSessionKey(sessionKey))) {
-    return files.filter((file) => MAIN_BOOTSTRAP_ALLOWLIST.has(file.name));
+    return files;
   }
   return files.filter((file) => MINIMAL_BOOTSTRAP_ALLOWLIST.has(file.name));
 }
