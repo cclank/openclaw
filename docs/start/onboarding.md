@@ -43,12 +43,17 @@ Where does the **Gateway** run?
   credentials must exist on the gateway host.
 - **Configure later:** skip setup and leave the app unconfigured.
 
+<!-- markdownlint-disable MD032 -->
+
 <Tip>
 **Gateway auth tip:**
 - The wizard now generates a **token** even for loopback, so local WS clients must authenticate.
 - If you disable auth, any local process can connect; use that only on fully trusted machines.
 - Use a **token** for multi‑machine access or non‑loopback binds.
 </Tip>
+
+<!-- markdownlint-enable MD032 -->
+
 </Step>
 <Step title="Permissions">
 <Frame caption="Choose what permissions do you want to give OpenClaw">
