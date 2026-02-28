@@ -164,6 +164,16 @@ export type AgentDefaultsConfig = {
   contextPruning?: AgentContextPruningConfig;
   /** Compaction tuning and pre-compaction memory flush behavior. */
   compaction?: AgentCompactionConfig;
+  /** Embedded Pi runner hardening and compatibility controls. */
+  embeddedPi?: {
+    /**
+     * How embedded Pi should trust workspace-local `.pi/config/settings.json`.
+     * - sanitize (default): apply project settings except shellPath/shellCommandPrefix
+     * - ignore: ignore project settings entirely
+     * - trusted: trust project settings as-is
+     */
+    projectSettingsPolicy?: "trusted" | "sanitize" | "ignore";
+  };
   /** Vector memory search configuration (per-agent overrides supported). */
   memorySearch?: MemorySearchConfig;
   /** Default thinking level when no /think directive is present. */
@@ -265,6 +275,7 @@ export type AgentDefaultsConfig = {
 };
 
 export type AgentCompactionMode = "default" | "safeguard";
+export type AgentCompactionIdentifierPolicy = "strict" | "off" | "custom";
 
 export type AgentCompactionConfig = {
   /** Compaction summarization mode. */
@@ -277,6 +288,10 @@ export type AgentCompactionConfig = {
   reserveTokensFloor?: number;
   /** Max share of context window for history during safeguard pruning (0.1–0.9, default 0.5). */
   maxHistoryShare?: number;
+  /** Identifier-preservation instruction policy for compaction summaries. */
+  identifierPolicy?: AgentCompactionIdentifierPolicy;
+  /** Custom identifier-preservation instructions used when identifierPolicy is "custom". */
+  identifierInstructions?: string;
   /** Pre-compaction memory flush (agentic turn). Default: enabled. */
   memoryFlush?: AgentCompactionMemoryFlushConfig;
 };
